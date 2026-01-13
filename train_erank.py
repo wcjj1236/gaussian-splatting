@@ -46,6 +46,31 @@ try:
 except:
     SPARSE_ADAM_AVAILABLE = False
 
+
+
+def get_ordered_scale_multiple(scale):
+    ordered_scale, _ = torch.sort(scale, descending=True)
+    ordered_scale_multiple = ordered_scale / ordered_scale[:,2:3]
+    return ordered_scale_multiple, ordered_scale
+
+
+def get_effective_rank(scale, temp=1):
+    D = (scale*scale)**(1/temp)
+    _sum = D.sum(dim=1, keepdim=True)
+    pD = D / _sum
+    try:
+        entropy = -torch.sum(pD*torch.log(pD), dim=1)
+        erank = torch.exp(entropy)
+    except Exception as e:
+        print(e)
+        pass
+    return erank
+
+
+def get_volume(scale):
+    V = scale[:,0]*scale[:,1]*scale[:,2]
+    return V
+
 def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoint_iterations, checkpoint, debug_from,switch_to_wd,factor ,scale,log2sigma):
 
     if not SPARSE_ADAM_AVAILABLE and opt.optimizer_type == "sparse_adam":
@@ -115,6 +140,10 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
         # Render
         if (iteration - 1) == debug_from:
             pipe.debug = True
+        scales = gaussians.get_scaling
+        erank = get_effective_rank(scales)
+        _, ordered_scale = get_ordered_scale_multiple(scales)
+
 
         bg = torch.rand((3), device="cuda") if opt.random_background else background
 
@@ -136,6 +165,13 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
 
             loss = (1.0 - opt.lambda_dssim) * Ll1 + opt.lambda_dssim * (1.0 - ssim_value)
         else:
+            erank_loss = 0
+            thin_loss = 0
+            if iteration >= opt.erank_from_iter and iteration <= opt.erank_end_iter:
+                # erank loss
+                erank_loss = opt.erank_lambda * torch.clamp(-torch.log(erank-1+1e-7), 0).mean()
+
+                thin_loss = opt.thin_lambda*ordered_scale[:,2].mean()
             if iteration % 100 == 0:
                 print(f"Iteration {iteration}")
             image_4d = image.unsqueeze(0)
@@ -145,6 +181,7 @@ def training(dataset, opt, pipe, testing_iterations, saving_iterations, checkpoi
             gt_image_4d.to("cuda")
             log2_sigma.to("cuda")
             loss=factor*wloss_pytorch(image_4d, gt_image_4d, log2_sigma, num_scales=scale)
+            loss = loss+ erank_loss + thin_loss
             WDL=loss
 
 

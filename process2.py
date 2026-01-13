@@ -3,18 +3,18 @@ import subprocess
 
 base_cmd = [
     "python", "train_erank.py",
-    "-m", "/home/cw4287/gaussian-model/train_WD_erank_scales_3_log2sigma2",
+    "-m", "/vast/cw4287/gaussian-model/train_WD_erank_scales_3_log2sigma2",
     "-s", "/home/cw4287/gaussian-dataset/tandt/train",
     "--eval",
     "--data_device", "cuda",
     "--switch_to_wd", "True",
-    "--iterations", "30000",
+    "--iterations", "50000",
     #"--test_iterations", "100", "200", "300", "500", "1000" ,"1500", "2000" ,"2500", "3000","3500", "4000","4500", "5000", #"8000", "10000" ,"15000" ,"20000", "25000", "30000",
 ]
 
 render_cmd = [
     "python", "render.py",
-    "-m", "/home/cw4287/gaussian-model/train_WD_erank_scales_3_log2sigma2",
+    "-m", "/vast/cw4287/gaussian-model/train_WD_erank_scales_3_log2sigma2",
     "-s", "/home/cw4287/gaussian-dataset/tandt/train",
     "--eval",
     "--data_device", "cuda",
